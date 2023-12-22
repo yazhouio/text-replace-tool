@@ -1,0 +1,8 @@
+old_web_prefix = '/dca768b9-629c-4b38-a652-1fdee6afbe3e'
+# new_web_prefix = '/k/'
+local_config_path = '/Users/yazhou/code/rust/text-replace/dist/local_config.yaml'
+config_path = '/Users/yazhou/code/rust/text-replace/dist/config.yaml'
+source_path = '/Users/yazhou/code/rust/text-replace/dist'
+output_path = '/Users/yazhou/code/rust/text-replace/output'
+file_types = ['js', 'css']
+exclude_path = []
