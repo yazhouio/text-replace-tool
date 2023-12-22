@@ -56,8 +56,7 @@ async fn main() -> Result<()> {
 async fn init_config() -> Result<Setting> {
     let args = Args::parse();
     let Args { config_path } = args;
-    let config_path = env::current_exe()?.join(config_path);
-
+    let config_path = env::current_dir()?.join(config_path);
     if !config_path.exists() {
         return Err(anyhow!("config file not exists"));
     }
