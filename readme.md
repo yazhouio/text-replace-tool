@@ -30,3 +30,10 @@ exclude_path = [] # 排除的路径, 相对路径，iter 为正则
 ```
 
 > 注：new_web_prefix 配置优先级高于 local_config_path 中的配置， local_config_path 高于 config_path 中的配置
+> 注： Dockerfile 中 CMD 配置需加上 ./text-replace 并注意权限问题
+例：
+```Dockerfile
+
+CMD ["/bin/sh", "-c", "/opt/kubesphere/console/text-replace && npm run serve"]
+
+```
