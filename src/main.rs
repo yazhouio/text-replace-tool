@@ -1,4 +1,9 @@
-use std::{env, path::{PathBuf, Path}};
+use std::{
+    env,
+    path::{Path, PathBuf},
+    time::Instant,
+    fs,
+};
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
@@ -13,7 +18,7 @@ struct Args {
     config_path: String,
 }
 
-#[derive(Debug, Clone,  Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 struct Client {
     #[serde(rename = "webPrefix")]
     web_prefix: String,
@@ -46,14 +51,16 @@ struct Setting {
     file_types: Option<Vec<String>>,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let setting = init_config().await?;
-    map_files(setting).await?;
+fn main() -> Result<()> {
+    let start = Instant::now();
+    let setting = init_config()?;
+    map_files(setting)?;
+    let duration = start.elapsed();
+    println!("Time elapsed is: {:?}", duration);
     Ok(())
 }
 
-async fn init_config() -> Result<Setting> {
+fn init_config() -> Result<Setting> {
     let args = Args::parse();
     let Args { config_path } = args;
     let config_path = env::current_dir()?.join(config_path);
@@ -69,7 +76,7 @@ async fn init_config() -> Result<Setting> {
     map_file_config(setting)
 }
 
-async fn map_files(setting: Setting) -> Result<()> {
+fn map_files(setting: Setting) -> Result<()> {
     let Setting {
         source_path,
         file_types,
@@ -111,7 +118,7 @@ async fn map_files(setting: Setting) -> Result<()> {
         if !file_types.contains(&file_type) {
             continue;
         }
-        let content = tokio::fs::read_to_string(path).await?;
+        let content = fs::read_to_string(path)?;
         if !content.contains(&old_web_prefix) {
             continue;
         }
@@ -121,13 +128,12 @@ async fn map_files(setting: Setting) -> Result<()> {
         let path = out_dir.join(path);
         let parent = path.parent().unwrap();
         if !parent.exists() {
-            tokio::fs::create_dir_all(parent).await?;
+            fs::create_dir_all(parent)?;
         }
-        tokio::fs::write(path, new_content).await?;
+        fs::write(path, new_content)?;
     }
     Ok(())
 }
-
 
 // FileConfig -> Setting
 fn map_file_config(file_config: FileConfig) -> Result<Setting> {
@@ -144,45 +150,49 @@ fn map_file_config(file_config: FileConfig) -> Result<Setting> {
 
     if let Some(new_web_prefix) = new_web_prefix {
         return Ok(Setting {
-                old_web_prefix,
-                new_web_prefix,
-                exclude_path,
-                source_path,
-                output_path,
-                file_types,
-            });
+            old_web_prefix,
+            new_web_prefix,
+            exclude_path,
+            source_path,
+            output_path,
+            file_types,
+        });
     }
-    
+
     let is_empty = local_config_path.is_none();
-    let mut local_config = local_config_path.map(|path| {
-        get_yaml_config(&path)
-    }).transpose();
-    
+    let mut local_config = local_config_path
+        .map(|path| get_yaml_config(&path))
+        .transpose();
+
     if is_empty || local_config.is_err() {
-        local_config = config_path.map(|path| {
-            get_yaml_config(&path)
-        }).transpose();
+        local_config = config_path.map(|path| get_yaml_config(&path)).transpose();
     }
 
     let default_config = YamlConfig {
         client: Client {
             web_prefix: "".to_owned(),
-        }
+        },
     };
-   let yaml_config  =  local_config.unwrap_or(None).unwrap_or(default_config);
-   let web_prefix = yaml_config.client.web_prefix;
-     Ok(Setting {
+    let yaml_config = local_config.unwrap_or(None).unwrap_or(default_config);
+    let web_prefix = yaml_config.client.web_prefix;
+    Ok(Setting {
         old_web_prefix,
-        new_web_prefix: if web_prefix == "/" { "".to_owned() } else { web_prefix },
+        new_web_prefix: if web_prefix == "/" {
+            "".to_owned()
+        } else {
+            web_prefix
+        },
         exclude_path,
         source_path,
         output_path,
         file_types,
     })
 }
-   
 
-fn get_yaml_config<P>(path: &P) -> Result<YamlConfig> where P: AsRef<Path> + ?Sized  {
+fn get_yaml_config<P>(path: &P) -> Result<YamlConfig>
+where
+    P: AsRef<Path> + ?Sized,
+{
     let path = path.as_ref();
     let setting = Config::builder()
         .add_source(config::File::from(path))
@@ -190,4 +200,3 @@ fn get_yaml_config<P>(path: &P) -> Result<YamlConfig> where P: AsRef<Path> + ?Si
         .try_deserialize()?;
     Ok(setting)
 }
-

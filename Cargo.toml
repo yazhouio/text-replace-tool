@@ -8,8 +8,14 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.76"
 clap = { version = "4.4.11", features = ["derive"] }
-config = { version = "0.13.4", features = ["yaml", "toml"] }
+config = { version = "0.14", features = ["yaml", "toml"] }
 regex = "1.10.2"
 serde = { version = "1.0.193", features = ["derive"] }
-tokio = { version = "1.35.1", features = ["fs", "rt-multi-thread", "macros"]}
 walkdir = "2.4.0"
+
+[profile.release]
+opt-level = 'z'     # Optimize for size
+lto = true          # Enable link-time optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations
+panic = 'abort'     # Abort on panic
+strip = true        # Strip symbols from binary*
