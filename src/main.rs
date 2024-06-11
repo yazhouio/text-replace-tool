@@ -1,13 +1,13 @@
 use std::{
-    env,
+    env, fs,
     path::{Path, PathBuf},
     time::Instant,
-    fs,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Result};
 use clap::Parser;
 use config::Config;
+use globset::Glob;
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
@@ -56,7 +56,7 @@ fn main() -> Result<()> {
     let setting = init_config()?;
     map_files(setting)?;
     let duration = start.elapsed();
-    println!("Time elapsed is: {:?}", duration);
+    println!("Replace success: Time elapsed is: {:?}", duration);
     Ok(())
 }
 
@@ -65,7 +65,7 @@ fn init_config() -> Result<Setting> {
     let Args { config_path } = args;
     let config_path = env::current_dir()?.join(config_path);
     if !config_path.exists() {
-        return Err(anyhow!("config file not exists"));
+        bail!("config file not exists");
     }
 
     let setting: FileConfig = Config::builder()
@@ -90,16 +90,17 @@ fn map_files(setting: Setting) -> Result<()> {
     exclude_path.push("\\.git$".to_owned());
     let path = PathBuf::from(&source_path);
     if !path.exists() {
-        return Err(anyhow!("dir not exists"));
+        bail!("dir not exists");
     }
     let walker = walkdir::WalkDir::new(&source_path)
         .into_iter()
         .filter_entry(|e| {
             let relative_path = e.path().strip_prefix(&source_path).unwrap();
             !exclude_path.iter().any(|p| {
-                regex::Regex::new(p)
-                    .unwrap()
-                    .is_match(relative_path.to_str().unwrap_or_default())
+                let glob = Glob::new(p)
+                    .unwrap_or_else(|_| panic!("invalid glob pattern: {}", p))
+                    .compile_matcher();
+                glob.is_match(relative_path.to_str().unwrap_or_default())
             })
         });
     for entry in walker {
